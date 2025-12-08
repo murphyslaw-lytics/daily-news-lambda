@@ -12,8 +12,8 @@ Resources:
   DailyNewsLambda:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: handler.lambda_handler
       CodeUri: src/
+      Handler: handler.lambda_handler
       Description: Fetches daily news and posts to Contentstack.
       Environment:
         Variables:
