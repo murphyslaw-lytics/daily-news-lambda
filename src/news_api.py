@@ -1,52 +1,42 @@
+import os
 import requests
-from utils import log, get_secret
-import os
-
-def fetch_top_articles():
-    """
-    Fetch top news articles using Bing News Search API.
-    """
-    api_key_secret = os.getenv("BING_NEWS_SECRET")
-    api_key = get_secret(api_key_secret)
-
-    import os
-
-BING_ENDPOINT = os.environ.get("BING_ENDPOINT", "")  # new var from template
-
-import os
 
 def get_bing_endpoint():
-    endpoint = os.environ.get("BING_ENDPOINT")
+    """
+    Returns the Azure Cognitive Services endpoint without a trailing slash.
+    """
+    endpoint = os.environ.get("BING_ENDPOINT", "")
     if endpoint.endswith("/"):
         endpoint = endpoint[:-1]
     return endpoint
 
-url = f"{get_bing_endpoint()}/bing/v7.0/news/search"
+def fetch_news(api_key):
+    """
+    Fetches news articles using Azure Cognitive Services Bing News Search.
+    """
 
+    endpoint = get_bing_endpoint()
+    url = f"{endpoint}/bing/v7.0/news/search"
 
     query = "personalisation OR data orchestration OR AI OR customer experience"
 
-    headers = {"Ocp-Apim-Subscription-Key": api_key}
     params = {
         "q": query,
         "count": 10,
         "sortBy": "Date"
     }
 
-    log("Calling Bing News API...")
-    resp = requests.get(endpoint, headers=headers, params=params)
-    resp.raise_for_status()
+    headers = {
+        "Ocp-Apim-Subscription-Key": api_key
+    }
 
-    data = resp.json()
-    articles = []
+    print(f"[BING] Calling: {url}")
+    response = requests.get(url, headers=headers, params=params)
 
-    for item in data.get("value", []):
-        articles.append({
-            "title": item.get("name"),
-            "url": item.get("url"),
-            "summary": item.get("description"),
-            "published_at": item.get("datePublished")
-        })
+    # Raise for HTTP errors
+    response.raise_for_status()
 
-    log(f"Fetched {len(articles)} articles")
-    return articles
+    data = response.json()
+
+    # Bing returns articles in data['value']
+    return data.get("value", [])
