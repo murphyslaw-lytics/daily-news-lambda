@@ -16,7 +16,7 @@ def fetch_news(api_key):
     """
 
     endpoint = get_bing_endpoint()
-    url = f"{endpoint}/bing/v7.0/news/search"
+    url = f"{endpoint}/bing/v7.0/news"
 
     query = "personalisation OR data orchestration OR AI OR customer experience"
 
