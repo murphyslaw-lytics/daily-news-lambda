@@ -1,1 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple hello lambda to verify SAM build works.
 
+Globals:
+  Function:
+    Runtime: python3.10
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  HelloLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: src/
+      Events:
+        DailyTrigger:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)
+
+Outputs:
+  LambdaName:
+    Value: !Ref HelloLambda
