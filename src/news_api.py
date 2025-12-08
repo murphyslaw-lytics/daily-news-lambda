@@ -13,7 +13,16 @@ def fetch_top_articles():
 
 BING_ENDPOINT = os.environ.get("BING_ENDPOINT", "")  # new var from template
 
-url = f"{BING_ENDPOINT}/bing/v7.0/news/search"
+import os
+
+def get_bing_endpoint():
+    endpoint = os.environ.get("BING_ENDPOINT")
+    if endpoint.endswith("/"):
+        endpoint = endpoint[:-1]
+    return endpoint
+
+url = f"{get_bing_endpoint()}/bing/v7.0/news/search"
+
 
     query = "personalisation OR data orchestration OR AI OR customer experience"
 
