@@ -1,25 +1,41 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Simple hello lambda to verify SAM build works.
+Description: Daily automated news fetch Lambda for Contentstack.
 
 Globals:
   Function:
     Runtime: python3.10
-    Timeout: 10
-    MemorySize: 128
+    Timeout: 30
+    MemorySize: 512
 
 Resources:
-  HelloLambda:
+  DailyNewsLambda:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
       CodeUri: src/
+      Description: Fetches daily news and posts to Contentstack.
+      Environment:
+        Variables:
+          BING_NEWS_SECRET: "bing-news-api-key"
+          CS_API_KEY_SECRET: "contentstack-api-key"
+          CS_MGMT_TOKEN_SECRET: "contentstack-management-token"
+          CS_DELIVERY_TOKEN_SECRET: "contentstack-delivery-token"
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:bing-news-api-key*
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:contentstack-api-key*
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:contentstack-management-token*
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:contentstack-delivery-token*
       Events:
         DailyTrigger:
           Type: Schedule
           Properties:
-            Schedule: cron(0 6 * * ? *)
+            Schedule: cron(0 6 * * ? *)  # Runs daily at 06:00 UTC
 
 Outputs:
   LambdaName:
-    Value: !Ref HelloLambda
+    Value: !Ref DailyNewsLambda
