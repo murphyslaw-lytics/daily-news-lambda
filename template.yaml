@@ -17,6 +17,7 @@ Resources:
       Description: Fetches daily news and posts to Contentstack.
       Environment:
         Variables:
+          BING_ENDPOINT: "https://daily-news-bing.cognitiveservices.azure.com/"
           BING_NEWS_SECRET: "bing-news-api-key"
           CS_API_KEY_SECRET: "contentstack-api-key"
           CS_MGMT_TOKEN_SECRET: "contentstack-management-token"
