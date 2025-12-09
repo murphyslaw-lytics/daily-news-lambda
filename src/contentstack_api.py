@@ -20,7 +20,7 @@ def publish_articles(articles):
     headers = {
         "authorization": MANAGEMENT_TOKEN,
         "api_key": STACK_API_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
         "X-Contentstack-Branch": "main"
     }
 
