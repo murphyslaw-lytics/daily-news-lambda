@@ -21,6 +21,7 @@ def publish_articles(articles):
         "authorization": MANAGEMENT_TOKEN,
         "api_key": STACK_API_KEY,
         "Content-Type": "application/json"
+        "X-Contentstack-Branch": "main"
     }
 
     results = []
