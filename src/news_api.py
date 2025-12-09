@@ -23,7 +23,8 @@ def fetch_news(api_key):
         "q": query,
         "count": 10,
         "freshness": "Day",
-        "textFormat": "Raw"
+        "textFormat": "Raw",
+        "safeSearch": "Off"
     }
 
     headers = {
