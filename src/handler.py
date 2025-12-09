@@ -6,30 +6,32 @@ from contentstack_api import publish_articles
 def lambda_handler(event, context):
     log("Daily News Lambda triggered")
 
+    # Get secret name from environment variable
+    secret_name = os.environ.get("BING_NEWS_SECRET")
+    if not secret_name:
+        return {"statusCode": 500, "error": "BING_NEWS_SECRET env var not set"}
+
+    log(f"Retrieving secret: {secret_name}")
+    api_key = get_secret(secret_name)
+    if not api_key:
+        return {"statusCode": 500, "error": "Unable to retrieve API key"}
+
+    # Fetch news using our NewsAPI wrapper
     try:
-        # 1. Get Bing key
-        bing_secret_name = os.environ.get("BING_NEWS_SECRET")
-        api_key = get_secret(bing_secret_name)
         articles = fetch_news(api_key)
+    except Exception as e:
+        log(f"Error fetching news: {str(e)}")
+        return {"statusCode": 500, "error": str(e)}
 
-        # 2. Fetch articles
-        articles = fetch_news(bing_api_key)
-        log(f"Fetched {len(articles)} articles from Bing")
-
-        # 3. Publish to Contentstack
-        results = publish_articles(articles)
-        log(f"Published {len(results)} articles to Contentstack")
-
+    # Publish articles to Contentstack
+    try:
+        result = publish_articles(articles)
         return {
             "statusCode": 200,
             "message": "Success",
             "articles_processed": len(articles),
-            "contentstack_result_count": len(results)
+            "contentstack_result": result
         }
-
     except Exception as e:
-        log(f"ERROR: {str(e)}")
-        return {
-            "statusCode": 500,
-            "error": str(e)
-        }
+        log(f"Contentstack ERROR: {str(e)}")
+        return {"statusCode": 500, "error": str(e)}
