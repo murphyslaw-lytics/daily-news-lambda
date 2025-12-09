@@ -9,7 +9,8 @@ def lambda_handler(event, context):
     try:
         # 1. Get Bing key
         bing_secret_name = os.environ.get("BING_NEWS_SECRET")
-        bing_api_key = get_secret(bing_secret_name)
+        api_key = get_secret(bing_secret_name)
+        articles = fetch_news(api_key)
 
         # 2. Fetch articles
         articles = fetch_news(bing_api_key)
