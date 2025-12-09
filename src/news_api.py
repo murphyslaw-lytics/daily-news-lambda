@@ -16,20 +16,21 @@ def fetch_news(api_key):
     """
 
     endpoint = get_bing_endpoint()
-    url = f"{endpoint}/bing/v7.0/news"
-
+    url = "https://bing-news-search1.p.rapidapi.com/news/search"
     query = "personalisation OR data orchestration OR AI OR customer experience"
 
     params = {
         "q": query,
         "count": 10,
-        "sortBy": "Date"
+        "freshness": "Day",
+        "textFormat": "Raw"
     }
 
     headers = {
-        "Ocp-Apim-Subscription-Key": api_key
+        "X-RapidAPI-Key": api_key,
+        "X-RapidAPI-Host": "bing-news-search1.p.rapidapi.com"
     }
-
+    
     print(f"[BING] Calling: {url}")
     response = requests.get(url, headers=headers, params=params)
 
