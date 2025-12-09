@@ -1,44 +1,44 @@
 import os
 import requests
+from utils import log
 
-def get_bing_endpoint():
-    """
-    Returns the Azure Cognitive Services endpoint without a trailing slash.
-    """
-    endpoint = os.environ.get("BING_ENDPOINT", "")
-    if endpoint.endswith("/"):
-        endpoint = endpoint[:-1]
-    return endpoint
+NEWSAPI_ENDPOINT = "https://newsapi.org/v2/everything"
 
 def fetch_news(api_key):
     """
-    Fetches news articles using Azure Cognitive Services Bing News Search.
+    Fetch top articles using NewsAPI.org.
+    You can tune queries / sources / languages as you like.
     """
 
-    endpoint = get_bing_endpoint()
-    url = "https://bing-news-search1.p.rapidapi.com/news/search"
-    query = "personalisation OR data orchestration OR AI OR customer experience"
+    query = "personalization OR \"data orchestration\" OR \"customer experience\" OR martech OR CDP"
 
     params = {
         "q": query,
-        "count": 10,
-        "freshness": "Day",
-        "textFormat": "Raw",
-        "safeSearch": "Off"
+        "language": "en",
+        "pageSize": 10,
+        "sortBy": "publishedAt",
     }
 
     headers = {
-        "X-RapidAPI-Key": api_key,
-        "X-RapidAPI-Host": "bing-news-search1.p.rapidapi.com"
+        "X-Api-Key": api_key
     }
-    
-    print(f"[BING] Calling: {url}")
-    response = requests.get(url, headers=headers, params=params)
 
-    # Raise for HTTP errors
+    log(f"[NewsAPI] Calling {NEWSAPI_ENDPOINT} with query: {query}")
+    response = requests.get(NEWSAPI_ENDPOINT, headers=headers, params=params)
     response.raise_for_status()
 
     data = response.json()
 
-    # Bing returns articles in data['value']
-    return data.get("value", [])
+    articles = []
+    for item in data.get("articles", []):
+        articles.append({
+            "title": item.get("title"),
+            "url": item.get("url"),
+            "summary": item.get("description") or "",
+            "published_at": item.get("publishedAt"),
+            "source": (item.get("source") or {}).get("name"),
+            "author": item.get("author")
+        })
+
+    log(f"[NewsAPI] Fetched {len(articles)} articles")
+    return articles
