@@ -2,32 +2,96 @@ import os
 import requests
 from utils import log, get_secret
 
-# Contentstack constants
 CONTENTSTACK_API_BASE = "https://api.contentstack.io/v3"
 CONTENT_TYPE = "daily_news_article"
 
-# Environment variables from Lambda
 STACK_API_KEY = get_secret(os.environ.get("CONTENTSTACK_API_KEY"))
 MANAGEMENT_TOKEN = get_secret(os.environ.get("CS_MGMT_TOKEN_SECRET"))
 
-def publish_articles(articles):
-    url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries"
+HEADERS = {
+    "api_key": STACK_API_KEY,
+    "authorization": MANAGEMENT_TOKEN,
+    "Content-Type": "application/json"
+}
 
-    headers = {
-        "api_key": STACK_API_KEY,
-        "authorization": MANAGEMENT_TOKEN,
-        "Content-Type": "application/json",
-        "X-Contentstack-Branch": "main",
-        "X-Contentstack-Api-Version": "3.0"
+ENVIRONMENT = "main"
+LOCALE = "en-us"
+
+
+# -------------------------------------------------------------
+# Helper: Check if article already exists (Dedupe)
+# -------------------------------------------------------------
+def entry_exists(url):
+    query = {
+        "query": {
+            "url": url
+        }
     }
 
-    results = []
+    response = requests.get(
+        f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries",
+        headers=HEADERS,
+        params={"query": str(query)}
+    )
+
+    if response.status_code != 200:
+        log(f"[WARN] Failed to check existing entries: {response.text}")
+        return False
+
+    data = response.json()
+    return len(data.get("entries", [])) > 0
+
+
+# -------------------------------------------------------------
+# Helper: Publish entry
+# -------------------------------------------------------------
+def publish_entry(entry_uid):
+    publish_url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries/{entry_uid}/publish"
+
+    payload = {
+        "entry": {
+            "environments": [ENVIRONMENT],
+            "locales": [LOCALE]
+        }
+    }
+
+    resp = requests.post(publish_url, headers=HEADERS, json=payload)
+
+    if resp.status_code >= 300:
+        log(f"[ERROR] Failed to publish entry {entry_uid}: {resp.text}")
+        return False
+
+    return True
+
+
+# -------------------------------------------------------------
+# Main: Create entries with dedupe + automatic publishing
+# -------------------------------------------------------------
+def create_or_update_articles(articles):
+    created = 0
+    skipped = 0
+    published = 0
 
     for article in articles:
-        entry = {
+        title = article.get("title")
+        url = article.get("url")
+
+        if not url:
+            log(f"[SKIP] No URL → Cannot dedupe → Skipping: {title}")
+            skipped += 1
+            continue
+
+        # 1. Dedupe check
+        if entry_exists(url):
+            log(f"[SKIP] Already exists → {url}")
+            skipped += 1
+            continue
+
+        # 2. Build entry
+        entry_data = {
             "entry": {
-                "title": article.get("title"),
-                "url": article.get("url"),
+                "title": title,
+                "url": url,
                 "source": article.get("source"),
                 "summary": article.get("summary"),
                 "thumbnail_url": article.get("thumbnail_url"),
@@ -36,14 +100,26 @@ def publish_articles(articles):
             }
         }
 
-        log(f"Creating entry: {entry['entry']['title']}")
+        log(f"[CREATE] Creating entry: {title}")
 
-        response = requests.post(url, headers=headers, json=entry)
+        # 3. Create entry
+        create_url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries"
+        response = requests.post(create_url, headers=HEADERS, json=entry_data)
 
         if not response.ok:
-            log(f"Contentstack ERROR {response.status_code}: {response.text}")
-            response.raise_for_status()
+            log(f"[ERROR] Entry creation failed: {response.text}")
+            continue
 
-        results.append(response.json())
+        entry_uid = response.json()["entry"]["uid"]
+        created += 1
 
-    return {"created": len(results)}
+        # 4. Publish entry
+        if publish_entry(entry_uid):
+            log(f"[PUBLISHED] {title}")
+            published += 1
+
+    return {
+        "created": created,
+        "skipped": skipped,
+        "published": published
+    }
