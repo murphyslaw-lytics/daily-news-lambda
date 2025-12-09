@@ -1,12 +1,17 @@
 import os
+import json
 import requests
 from utils import log, get_secret
 
+# Contentstack constants
 CONTENTSTACK_API_BASE = "https://api.contentstack.io/v3"
 CONTENT_TYPE = "daily_news_article"
 
 STACK_API_KEY = get_secret(os.environ.get("CONTENTSTACK_API_KEY"))
 MANAGEMENT_TOKEN = get_secret(os.environ.get("CS_MGMT_TOKEN_SECRET"))
+
+ENVIRONMENT = "main"
+LOCALE = "en-us"
 
 HEADERS = {
     "api_key": STACK_API_KEY,
@@ -14,39 +19,37 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-ENVIRONMENT = "main"
-LOCALE = "en-us"
-
-
-# -------------------------------------------------------------
-# Helper: Check if article already exists (Dedupe)
-# -------------------------------------------------------------
+# ----------------------------------------------------------
+# DEDUPE — check if entry exists by URL
+# ----------------------------------------------------------
 def entry_exists(url):
-    query = {
-        "query": {
-            "url": url
-        }
-    }
+    query = {"url": url}
 
     response = requests.get(
         f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries",
         headers=HEADERS,
-        params={"query": str(query)}
+        params={"query": json.dumps(query)}
     )
 
     if response.status_code != 200:
-        log(f"[WARN] Failed to check existing entries: {response.text}")
+        log(f"[WARN] Could not check existing entries: {response.text}")
         return False
 
     data = response.json()
-    return len(data.get("entries", [])) > 0
+    entries = data.get("entries", [])
+
+    exists = len(entries) > 0
+    if exists:
+        log(f"[SKIP] Already exists → {url}")
+
+    return exists
 
 
-# -------------------------------------------------------------
-# Helper: Publish entry
-# -------------------------------------------------------------
-def publish_entry(entry_uid):
-    publish_url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries/{entry_uid}/publish"
+# ----------------------------------------------------------
+# PUBLISH ENTRY
+# ----------------------------------------------------------
+def publish_entry(uid):
+    publish_url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries/{uid}/publish"
 
     payload = {
         "entry": {
@@ -55,19 +58,20 @@ def publish_entry(entry_uid):
         }
     }
 
-    resp = requests.post(publish_url, headers=HEADERS, json=payload)
+    response = requests.post(publish_url, headers=HEADERS, json=payload)
 
-    if resp.status_code >= 300:
-        log(f"[ERROR] Failed to publish entry {entry_uid}: {resp.text}")
+    if not response.ok:
+        log(f"[ERROR] Failed to publish entry {uid}: {response.text}")
         return False
 
+    log(f"[PUBLISHED] Entry UID: {uid}")
     return True
 
 
-# -------------------------------------------------------------
-# Main: Create entries with dedupe + automatic publishing
-# -------------------------------------------------------------
-def create_or_update_articles(articles):
+# ----------------------------------------------------------
+# MAIN INGESTION PIPELINE
+# ----------------------------------------------------------
+def process_articles(articles):
     created = 0
     skipped = 0
     published = 0
@@ -76,18 +80,18 @@ def create_or_update_articles(articles):
         title = article.get("title")
         url = article.get("url")
 
+        # Missing URL → cannot dedupe → skip
         if not url:
-            log(f"[SKIP] No URL → Cannot dedupe → Skipping: {title}")
+            log(f"[SKIP] Missing URL → {title}")
             skipped += 1
             continue
 
-        # 1. Dedupe check
+        # Check for duplicates
         if entry_exists(url):
-            log(f"[SKIP] Already exists → {url}")
             skipped += 1
             continue
 
-        # 2. Build entry
+        # Build entry payload
         entry_data = {
             "entry": {
                 "title": title,
@@ -102,7 +106,7 @@ def create_or_update_articles(articles):
 
         log(f"[CREATE] Creating entry: {title}")
 
-        # 3. Create entry
+        # Create entry
         create_url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries"
         response = requests.post(create_url, headers=HEADERS, json=entry_data)
 
@@ -113,9 +117,8 @@ def create_or_update_articles(articles):
         entry_uid = response.json()["entry"]["uid"]
         created += 1
 
-        # 4. Publish entry
+        # Auto-publish
         if publish_entry(entry_uid):
-            log(f"[PUBLISHED] {title}")
             published += 1
 
     return {
