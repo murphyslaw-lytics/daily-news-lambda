@@ -34,10 +34,11 @@ def fetch_news(api_key):
         articles.append({
             "title": item.get("title"),
             "url": item.get("url"),
-            "summary": item.get("description") or "",
+            "source": (item.get("source") or {}).get("name"),    
+            "summary": item.get("description"),
+            "thumbnail_url": (item.get("urlToImage")),
             "published_at": item.get("publishedAt"),
-            "source": (item.get("source") or {}).get("name"),
-            "author": item.get("author")
+            "run_date": item.get("publishedAt")
         })
 
     log(f"[NewsAPI] Fetched {len(articles)} articles")
