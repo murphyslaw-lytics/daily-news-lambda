@@ -1,30 +1,26 @@
 import os
 import requests
-from utils import log
+from utils import log, get_secret
 
 # Contentstack constants
 CONTENTSTACK_API_BASE = "https://api.contentstack.io/v3"
-CONTENT_TYPE = "daily_news_article"  # your real API ID
+CONTENT_TYPE = "daily_news_article"
 
 # Environment variables from Lambda
-MANAGEMENT_TOKEN = os.environ.get("CONTENTSTACK_MANAGEMENT_TOKEN")
-STACK_API_KEY = os.environ.get("CONTENTSTACK_API_KEY")
+STACK_API_KEY = get_secret(os.environ.get("CONTENTSTACK_API_KEY"))
+MANAGEMENT_TOKEN = get_secret(os.environ.get("CS_MGMT_TOKEN_SECRET"))
 
 def publish_articles(articles):
-    """
-    Publish each article to Contentstack as an entry in daily_news_article.
-    """
-
     url = f"{CONTENTSTACK_API_BASE}/content_types/{CONTENT_TYPE}/entries"
 
     headers = {
-        "authorization": MANAGEMENT_TOKEN,
         "api_key": STACK_API_KEY,
+        "authorization": MANAGEMENT_TOKEN,
         "Content-Type": "application/json",
         "X-Contentstack-Branch": "main",
         "X-Contentstack-Api-Version": "3.0"
-}
- 
+    }
+
     results = []
 
     for article in articles:
@@ -48,7 +44,6 @@ def publish_articles(articles):
             log(f"Contentstack ERROR {response.status_code}: {response.text}")
             response.raise_for_status()
 
-        data = response.json()
-        results.append(data)
+        results.append(response.json())
 
     return {"created": len(results)}
