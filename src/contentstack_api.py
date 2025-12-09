@@ -8,7 +8,7 @@ CONTENT_TYPE = "daily_news_article"  # your real API ID
 
 # Environment variables from Lambda
 MANAGEMENT_TOKEN = os.environ.get("CONTENTSTACK_MANAGEMENT_TOKEN")
-STACK_API_KEY = os.environ.get("CONTENTSTACK_STACK_API_KEY")
+STACK_API_KEY = os.environ.get("CONTENTSTACK_API_KEY")
 
 def publish_articles(articles):
     """
