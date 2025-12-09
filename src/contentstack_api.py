@@ -94,7 +94,7 @@ def process_articles(articles):
         # Build entry payload
         entry_data = {
             "entry": {
-                "title": title,
+                "headline": title,
                 "url": url,
                 "source": article.get("source"),
                 "summary": article.get("summary"),
